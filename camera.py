@@ -101,6 +101,9 @@ def check_CPU_temp():
             pass
     return temp, msg
 
+def build_json():
+    return 'demo'
+
 #GPIO.output(21,GPIO.LOW)
 #GPIO.output(21,GPIO.HIGH)
 

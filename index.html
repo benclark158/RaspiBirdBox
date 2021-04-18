@@ -1,0 +1,238 @@
+<html>
+	<head>
+		<title>Bird Box Camera</title>
+
+		<link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css" integrity="sha384-AYmEC3Yw5cVb3ZcuHtOA93w35dYTsvhLPVnYs9eStHfGJvOvKxVfELGroGkvsg+p" crossorigin="anonymous"/>
+		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6" crossorigin="anonymous">
+
+		<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js" integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf" crossorigin="anonymous"></script>
+
+		<style>
+			.row {
+				margin-top: 1rem;
+			}
+
+			.saved-image, .saved-video {
+				margin: 1rem 0;
+				border: 1px solid black;
+				border-radius: 1rem;
+				overflow: hidden;
+			}
+
+			.saved-image p, .saved-video p{
+				margin-top: 0.4rem;
+				margin-bottom: 0.5rem;
+				text-align: center;
+				text-decoration: none !important;
+				color: black;
+			}
+
+			.asset-column a{
+				text-decoration: none;
+				color: black;
+			}
+
+			.image-viewer .saved-image, .video-viewer .saved-video {
+				position: relative;
+			}
+
+			.overlay{
+				position: absolute;
+				top: 0;
+				bottom: 0;
+				font-size: 5rem;
+				color: white;
+				background-color: rgba(0, 0, 0, 0.5);
+				height: 100%;
+				width: 100%;
+				opacity: 0;
+				transition: 0.4s;
+			}
+
+			.saved-image:hover .overlay {
+				opacity: 1;
+			}
+
+			.overlay i {
+				margin: 0;
+				position: absolute;
+				top: 50%;
+				-ms-transform: translateY(-50%);
+				transform: translateY(-50%);
+				width: 100%;
+				text-align: center;
+			}
+
+			.dummy-video {
+				height: 200px;
+				width: 100%; 
+				background-color: black;
+				font-size: 5rem;
+			}
+
+			.dummy-video i{
+				margin: 0;
+				position: absolute;
+				top: 45%;
+				-ms-transform: translateY(-50%);
+				transform: translateY(-50%);
+				width: 100%;
+				text-align: center;
+			}
+
+			img {
+				max-width: 100%;
+			}
+
+		</style>
+
+		<script>
+
+			function build_image(title, url){
+				return 
+					`<div class="col-sm-3 asset-column">
+						<a href="` + url + `">
+							<div class="saved-image">
+								<img src="` + url + `"/>
+								<p>` + title + `</p>
+								<div class="overlay">
+									<i class="far fa-image"></i>
+								</div>
+							</div>
+						</a>
+					</div>`;
+			}
+
+			function build_video(title, url){
+				return 
+					`<div class="col-sm-3 asset-column">
+						<a href="` + url + `" download>
+							<div class="saved-video">
+								<div class="dummy-video">
+									<i class="fas fa-cloud-download-alt" style="color: white;"></i>
+								</div>
+								<p>` + title + `</p>
+							</div>
+						</a>
+					</div>`;
+			}
+
+			function readJson(json){
+				var stats = json.stats;
+				var videos = json.videos;
+				var images = json.images;
+
+				var imgHtml = "";
+				var vidHtml = "";
+				
+				for(var i = 0; i < images.length; i++){
+					imgHtml += build_image(images[i].title, images[i].url);
+				}
+
+				for(var i = 0; i < videos.length; i++){
+					vidHtml += build_video(videos[i].title, videos[i].url);
+				}
+
+				document.getElementById("video-container").innerHTML = vidHtml;
+				document.getElementById("image-container").innerHTML = imgHtml;
+
+				//outputs stats
+				for(var i = 0; i < stats.length; i++){
+					var id = stats[i].id;
+					var value = stats[i].value;
+
+					document.getElementById(id).innerHTML = value;
+				}
+			}
+
+			function ajax(query, data, callback){
+				jQuery.get(
+					url,
+					data,
+					callback
+				);
+			}
+
+			function loadAllData(){
+
+				var success = function(txt){
+					var json = JSON.parse(txt);
+
+					readJson(json);
+				}
+
+				ajax("/data", [], success);
+			}
+
+
+		</script>
+	</head>
+	<body>
+		<div class="container">
+			<div class="row">
+				<div class="col-sm-12">
+					<div class="card card-body">
+						<h2 class="card-title">Live Feed</h2>
+
+						<img src="stream.mjpg" width="100%" height="100%" style="background-color: grey;"/>
+						<p>Current Temperature: <span id="current-temperature">0.0</span>&deg;C</p>
+					</div>
+				</div>
+			</div>
+			<div class="row all-videos">
+				<div class="col-sm-12">
+					<div class="card card-body">
+						<h2 class="card-title">Saved Videos</h2>
+						<p class="card-text">Click on a video to download it.</p>
+
+						<div class="row video-viewer" id="video-container">
+							
+							<div class="col-sm-3 asset-column">
+								<a href="https://google.com" download>
+									<div class="saved-video">
+										<div class="dummy-video">
+											<i class="fas fa-cloud-download-alt" style="color: white;"></i>
+										</div>
+										<p>` + title + `</p>
+										<div class="overlay">
+											<i class="fas fa-cloud-download-alt"></i>
+										</div>
+									</div>
+								</a>
+							</div>
+
+
+						</div>
+						
+					</div>
+				</div>
+			</div>
+			<div class="row all-images">
+				<div class="col-sm-12">
+					<div class="card card-body">
+						<h2 class="card-title">Saved Photos</h2>
+						<p class="card-text">Click on a photo to view it.</p>
+						
+						<div class="row image-viewer" id="image-container">
+
+
+							<div class="col-sm-3 asset-column">
+								<a href="img.jpg">
+									<div class="saved-image">
+										<img src="img.jpg"/>
+										<p>12 Feb 2021 8:24am</p>
+										<div class="overlay">
+											<i class="far fa-image"></i>
+										</div>
+									</div>
+								</a>
+							</div>
+
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>
