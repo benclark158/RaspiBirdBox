@@ -5,8 +5,15 @@ import socketserver
 from threading import Condition
 from http import server
 import json
+import time
+import camera as c
 
-PAGE=open("index.html", "r").read()
+global PAGE
+PAGE=open("/home/pi/index.html", "r").read()
+
+output = None
+camera = None
+lastAccess = None
 
 class StreamingOutput(object):
 	def __init__(self):
@@ -30,41 +37,32 @@ class StreamingServer(socketserver.ThreadingMixIn, server.HTTPServer):
 	daemon_threads = True
 
 class StreamingHandler(server.BaseHTTPRequestHandler):
+
+	def write_success(self):
+		content = str.encode("Success")
+		self.send_response(200)
+		self.send_header('Content-Type', 'text/json')
+		self.send_header('Content-Length', len(content))
+		self.end_headers()
+		self.wfile.write(content)
+
 	def do_GET(self):
+
+		global lastAccess
+		global camera
+		global PAGE
+		lastAccess = round(time.time() * 1000)
+
 		if self.path == '/':
 			self.send_response(301)
 			self.send_header('Location', '/index.html')
 			self.end_headers()
 		elif self.path == '/index.html':
-			content = PAGE.encode('utf-8')
-			self.send_response(200)
-			self.send_header('Content-Type', 'text/html')
-			self.send_header('Content-Length', len(content))
-			self.end_headers()
-			self.wfile.write(content)
-		elif self.path == '/stream.mjpg':
-			self.send_response(200)
-			self.send_header('Age', 0)
-			self.send_header('Cache-Control', 'no-cache, private')
-			self.send_header('Pragma', 'no-cache')
-			self.send_header('Content-Type', 'multipart/x-mixed-replace; boundary=FRAME')
-			self.end_headers()
-			try:
-				while True:
-					with output.condition:
-						output.condition.wait()
-						frame = output.frame
-					self.wfile.write(b'--FRAME\r\n')
-					self.send_header('Content-Type', 'image/jpeg')
-					self.send_header('Content-Length', len(frame))
-					self.end_headers()
-					self.wfile.write(frame)
-					self.wfile.write(b'\r\n')
-			except Exception as e:
-				logging.warning(
-					'Removed streaming client %s: %s',
-					self.client_address, str(e))
-		elif self.path.startswith("/image/"):
+			currentTemp, _ = c.check_CPU_temp()
+
+			if currentTemp < 80.0:
+				c.start_stream_inactive(camera)
+
 			content = PAGE.encode('utf-8')
 			self.send_response(200)
 			self.send_header('Content-Type', 'text/html')
@@ -73,13 +71,35 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
 			self.wfile.write(content)
 		elif self.path == "/data":
 
-			content = build_json()
+			content = str.encode(c.build_json())
 
 			self.send_response(200)
 			self.send_header('Content-Type', 'text/json')
 			self.send_header('Content-Length', len(content))
 			self.end_headers()
 			self.wfile.write(content)
+		elif self.path.startswith("/api/"):
+			if self.path == "/api/nightvision":
+				c.toggle_mode()
+				self.write_success()
+			elif self.path == "/api/photo":
+				c.take_photo(camera, False)
+				self.write_success()
+			elif self.path == "/api/hqphoto":
+				c.take_photo(camera, True)
+				self.write_success()
+			elif self.path == "/api/startvideo":
+				c.start_recording(camera)
+				self.write_success()
+			elif self.path == "/api/endvideo":
+				c.end_recording(camera)
+				self.write_success()
+			elif self.path == "/api/reload":
+				PAGE=open("/home/pi/index.html", "r").read()
+				self.write_success()
+			else:
+				self.send_error(404)
+				self.end_headers()
 		else:
 			self.send_error(404)
 			self.end_headers()

@@ -2,11 +2,19 @@
 	<head>
 		<title>Bird Box Camera</title>
 
+		<meta charset="utf-8">
+		<meta content="IE=edge,chrome=1" http-equiv="X-UA-Compatible">
+        <meta content="width=device-width, initial-scale=1" name="viewport">
+
 		<link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css" integrity="sha384-AYmEC3Yw5cVb3ZcuHtOA93w35dYTsvhLPVnYs9eStHfGJvOvKxVfELGroGkvsg+p" crossorigin="anonymous"/>
 		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6" crossorigin="anonymous">
 
 		<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
 		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js" integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf" crossorigin="anonymous"></script>
+		
+		<link href="https://unpkg.com/video.js/dist/video-js.css" rel="stylesheet">
+		<script src="https://unpkg.com/video.js/dist/video.js"></script>
+		<script src="https://unpkg.com/videojs-contrib-hls/dist/videojs-contrib-hls.js"></script>
 
 		<style>
 			.row {
@@ -81,44 +89,135 @@
 				text-align: center;
 			}
 
+			.row.all-images {
+				margin-bottom: 2rem;
+			}
+
 			img {
 				max-width: 100%;
 			}
 
+			#video-wrapper {
+				overflow: hidden;
+			}
+
+			#video-wrapper.loading {
+				background-color: grey;
+				padding-top: 56.25%;
+				position: relative;
+			}
+
+			#video-wrapper #loading {
+				display: none;
+			}
+
+			#video-wrapper.loading #loading {
+				display: block !important;
+				text-align: center;
+				margin: auto;
+				margin-top: 10%;
+				position: absolute;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+			}
+
+			.loader{
+				border: 16px solid #f3f3f3; /* Light grey */
+				border-top: 16px solid #3498db; /* Blue */
+				border-radius: 50%;
+				width: 120px;
+				height: 120px;
+				animation: spin 2s linear infinite;
+				margin: auto;
+			}
+
+			@keyframes spin {
+				0% { transform: rotate(0deg); }
+				100% { transform: rotate(360deg); }
+			}
 		</style>
 
 		<script>
 
+			Array.prototype.equals = function (array) {
+				// if the other array is a falsy value, return
+				if (!array)
+					return false;
+
+				// compare lengths - can save a lot of time 
+				if (this.length != array.length)
+					return false;
+
+				for (var i = 0, l=this.length; i < l; i++) {
+					// Check if we have nested arrays
+					if (this[i] instanceof Array && array[i] instanceof Array) {
+						// recurse into the nested arrays
+						if (!this[i].equals(array[i]))
+							return false;       
+					}           
+					else if (this[i] != array[i]) { 
+						// Warning - two different object instances will never be equal: {x:20} != {x:20}
+						return false;   
+					}           
+				}       
+				return true;
+			}
+			// Hide method from for-in loops
+			Object.defineProperty(Array.prototype, "equals", {enumerable: false});
+
 			function build_image(title, url){
-				return 
-					`<div class="col-sm-3 asset-column">
-						<a href="` + url + `">
-							<div class="saved-image">
-								<img src="` + url + `"/>
-								<p>` + title + `</p>
-								<div class="overlay">
-									<i class="far fa-image"></i>
-								</div>
-							</div>
-						</a>
-					</div>`;
+				
+				if(title == null || title == ''){
+					title = url.replaceAll('images/', '').replaceAll('.jpg', '');
+				}
+
+				url = "http://" + location.hostname + "/" + url;
+
+				var html = '';
+				html += '<div class="col-sm-3 asset-column">';
+				html += '	<a href="' + url + '" target="_blank">';
+				html += '		<div class="saved-image">';
+				html += '			<img src="' + url + '"/>';
+				html += '			<p>' + title + '</p>';
+				html += '			<div class="overlay">';
+				html += '				<i class="far fa-image"></i>';
+				html += '			</div>';
+				html += '		</div>';
+				html += '	</a>';
+				html += '</div>';
+				return html;
 			}
 
 			function build_video(title, url){
-				return 
-					`<div class="col-sm-3 asset-column">
-						<a href="` + url + `" download>
-							<div class="saved-video">
-								<div class="dummy-video">
-									<i class="fas fa-cloud-download-alt" style="color: white;"></i>
-								</div>
-								<p>` + title + `</p>
-							</div>
-						</a>
-					</div>`;
+				if(title == null || title == ''){
+					title = url.replaceAll('videos/', '').replaceAll('.mp4', '');
+				}
+
+				url = "http://" + location.hostname + "/" + url;
+
+				var html = '';
+				
+				html += '<div class="col-sm-3 asset-column">';
+				html += '	<a href="' + url + '" download target="_blank">';
+				html += '		<div class="saved-video">';
+				html += '			<div class="dummy-video">';
+				html += '				<i class="fas fa-cloud-download-alt" style="color: white;"></i>';
+				html += '			</div>';
+				html += '			<p>' + title + '</p>';
+				html += '		</div>';
+				html += '	</a>';
+				html += '</div>';
+
+				return html;
 			}
 
+			var lastVideo = null;
+			var lastPhoto = null;
+
 			function readJson(json){
+
 				var stats = json.stats;
 				var videos = json.videos;
 				var images = json.images;
@@ -126,38 +225,63 @@
 				var imgHtml = "";
 				var vidHtml = "";
 				
-				for(var i = 0; i < images.length; i++){
-					imgHtml += build_image(images[i].title, images[i].url);
+				if(!images.equals(lastPhoto)){
+					for(var i = 0; i < images.length; i++){
+						imgHtml += build_image('', images[i]);
+					}
+					document.getElementById("image-container").innerHTML = imgHtml;
 				}
+				lastPhoto = images;
 
-				for(var i = 0; i < videos.length; i++){
-					vidHtml += build_video(videos[i].title, videos[i].url);
+				if(!videos.equals(lastVideo)){
+					for(var i = 0; i < videos.length; i++){
+						vidHtml += build_video('', videos[i]);
+					}
+					document.getElementById("video-container").innerHTML = vidHtml;
 				}
-
-				document.getElementById("video-container").innerHTML = vidHtml;
-				document.getElementById("image-container").innerHTML = imgHtml;
+				lastVideo = videos;				
 
 				//outputs stats
 				for(var i = 0; i < stats.length; i++){
 					var id = stats[i].id;
 					var value = stats[i].value;
 
-					document.getElementById(id).innerHTML = value;
+					if(id == "current-temperature" && parseFloat(value) > 80){
+						document.getElementById("player").outerHTML = "<h1>Live video unavailable due to high temperature</h1>";
+					}
+
+					if(id == "recording"){
+						if(value){
+							document.getElementById("videocontrol").innerText = "Stop Recording";
+							document.getElementById("videocontrol").setAttribute("onclick", "button('/api/endvideo')");
+						} else {
+							document.getElementById("videocontrol").innerText = "Start Recording";
+							document.getElementById("videocontrol").setAttribute("onclick", "button('/api/startvideo')");
+						}
+					} else {
+						document.getElementById(id).innerHTML = value;
+					}
 				}
 			}
 
 			function ajax(query, data, callback){
 				jQuery.get(
-					url,
+					query,
 					data,
 					callback
 				);
 			}
 
+			function button(query){
+				ajax(query, null, null);
+				setTimeout(function(){
+					loadAllData();
+				}, 100)
+			}
+
 			function loadAllData(){
 
-				var success = function(txt){
-					var json = JSON.parse(txt);
+				var success = function(json){
 
 					readJson(json);
 				}
@@ -165,7 +289,58 @@
 				ajax("/data", [], success);
 			}
 
+			var player = null;
 
+			$( document ).ready(function() {
+				loadAllData();
+    			setInterval(function(){
+					console.log("run");
+					loadAllData();
+				}, 15 * 1000);
+
+
+				var loadingLoop = setInterval(function(){
+
+					jQuery.get("http://birdbox/hls/birdbox.m3u8", null, function(){
+
+						/*var html = 
+						'<video id="player" class="video-js vjs-fluid vjs-default-skin" controls preload="none">' + 
+							'<source src="http://birdbox/hls/birdbox.m3u8" type="application/x-mpegURL" />' +
+						'</video>';*/
+					
+						var playerDom = document.getElementById("player");
+						var playerWrapper = document.getElementById("video-wrapper");
+						//playerDom.outerHTML = html;
+
+						playerDom.style.display = "block";
+						playerWrapper.classList.remove("loading");
+
+						clearInterval(loadingLoop);
+
+						player = videojs('player', {
+							autoplay: 'muted'
+						});						
+
+						/*setTimeout(function(){
+							player.play();
+						}, 100)*/
+					}).fail(function() {
+
+						var playerDom = document.getElementById("player");
+						var playerWrapper = document.getElementById("video-wrapper");
+
+						if(!playerWrapper.classList.contains("loading")){
+
+							playerWrapper.classList.add("loading");
+
+							playerDom.style.display = "none";
+							console.log("awaiting stream...");
+						//playerWrapper.innerHTML = playerWrapper.innerHTML + 
+						}
+  					});
+					//clearInterval(loadingLoop);
+				}, 500)
+			});
 		</script>
 	</head>
 	<body>
@@ -175,8 +350,31 @@
 					<div class="card card-body">
 						<h2 class="card-title">Live Feed</h2>
 
-						<img src="stream.mjpg" width="100%" height="100%" style="background-color: grey;"/>
-						<p>Current Temperature: <span id="current-temperature">0.0</span>&deg;C</p>
+						<!--<img src="stream.mjpg" width="100%" height="100%" style="background-color: grey;"/>-->
+						<div id="video-wrapper">
+							<video id="player" class="video-js vjs-fluid vjs-default-skin" controls preload="none">
+								<source src="http://birdbox/hls/birdbox.m3u8" type="application/x-mpegURL" />
+							</video>
+							<div id="loading">
+								<div class="loader"></div>
+								<h3>Video is being loaded...</h3>
+							</div>
+						</div>
+						<p>Current Camera Temperature: <span id="current-temperature">0.0</span>&deg;C</p>
+						<div class="row">
+							<div class="col-sm-4">
+								<a href="javascript:void" onclick="button('/api/nightvision')" class="btn btn-dark" style="width: 100%">Toggle Night Vision</a>
+							</div>
+							<div class="col-sm-4">
+								<a id="videocontrol" href="javascript:void" onclick="button('/api/startvideo')" class="btn btn-success" style="width: 100%">Start Recording</a>
+							</div>
+							<div class="col-sm-4">
+								<a href="javascript:void" onclick="button('/api/photo')" class="btn btn-warning" style="width: 100%">Take Photo</a>
+							</div>
+							<!--<div class="col-sm-3">
+								<a href="javascript:void" onclick="button('/api/hqphoto')" class="btn btn-danger" style="width: 100%">Take HQ Photo</a>
+							</div>-->
+						</div>
 					</div>
 				</div>
 			</div>
@@ -228,7 +426,6 @@
 									</div>
 								</a>
 							</div>
-
 						</div>
 					</div>
 				</div>
