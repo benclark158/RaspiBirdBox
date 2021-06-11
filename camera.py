@@ -8,6 +8,10 @@ import re
 import json
 import stream as s
 import glob
+import time
+import psutil
+import geocoder
+import shutil
 
 video_resolution = (1280, 720)
 photo_resolution = (2592, 1944)
@@ -24,6 +28,7 @@ ffmpegProg = None
 ffmpegProgRec = None
 currentMode = "day"
 recording = False
+userSetNV = False
 
 def init(display = True):
 
@@ -32,6 +37,7 @@ def init(display = True):
     GPIO.setwarnings(False)
     GPIO.setup(21,GPIO.OUT)
 
+    global currentMode
     set_mode(currentMode)
 
     #loads camera
@@ -65,12 +71,12 @@ def start_stream(camera):
 
 def stop_stream(camera):
     global ffmpegProg
-    try:
-        camera.stop_recording(splitter_port=2)
-    finally:
-        ffmpegProg.terminate()
-        ffmpegProg.wait()
-    
+ 
+    camera.stop_recording(splitter_port=2)
+
+    ffmpegProg.terminate()
+    ffmpegProg.kill()
+    sleep(1)
     print("Terminate Stream")
     ffmpegProg = None  
 
@@ -91,6 +97,7 @@ def get_current_timestamp():
     return dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 def toggle_mode():
+    global currentMode
     if(currentMode == 'day'):
         set_mode('night')
     else:
@@ -113,7 +120,8 @@ def take_photo(camera, isLarge = False):
         camera.framerate = 15
         sleep(0.01)
 
-    camera.capture(saveLocation + "images/" + get_current_timestamp() + ".jpg", use_video_port=True)
+    if get_disk_usage()[0] < 0.9:
+        camera.capture(saveLocation + "images/" + get_current_timestamp() + ".jpg", use_video_port=True)
 
     if isLarge:
         camera.resolution = video_resolution
@@ -123,7 +131,7 @@ def take_photo(camera, isLarge = False):
 
 def start_recording(camera):
     global recording
-    if recording == False:
+    if recording == False and get_disk_usage()[0] < 0.9:
         print("Start recording: " + get_current_timestamp())
         recording = True
         #camera.resolution = video_resolution
@@ -164,14 +172,37 @@ def check_CPU_temp():
             pass
     return temp, msg
 
+def get_boot_duration():
+    return (time.time() - psutil.boot_time())
+
+def get_location():
+    return geocoder.ip('me')
+
+def get_disk_usage():
+    total, usage, _ = shutil.disk_usage('/')
+
+    usagePercent = usage / total
+
+    totalRnd = round(total / (2**30), 2)
+    usageRnd = round(usage / (2**30), 2)
+
+    usageString = str(usageRnd) + 'GB / ' + str(totalRnd) + 'GB (' + str(round(usagePercent * 100, 2)) + '%)'
+
+    return [usagePercent, totalRnd, usageRnd, usageString]
+
+
 def build_json():
     currentTemp, _ = check_CPU_temp()
-    global recording
+    global recording, currentMode
 
     x = {
         "stats": [
             {"id": "current-temperature", "value": str(currentTemp)},
-            {"id": "recording", "value": recording}
+            {"id": "recording", "value": recording},
+            {"id": "running-duration", "value": str(dt.timedelta(seconds=int(get_boot_duration())))},
+            {"id": "address", "value": get_location().address},
+            {"id": "usage", "value": get_disk_usage()[3]},
+            {"id": "nightvision-mode", "value": currentMode}
         ],
         "images": sorted([w.replace('nginx/', '') for w in glob.glob("nginx/images/*.jpg")])[::-1],
         "videos": sorted([w.replace('nginx/', '') for w in glob.glob("nginx/videos/*.mp4")])[::-1]

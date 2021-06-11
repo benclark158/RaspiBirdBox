@@ -81,6 +81,7 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
 		elif self.path.startswith("/api/"):
 			if self.path == "/api/nightvision":
 				c.toggle_mode()
+				c.userSetNV = True
 				self.write_success()
 			elif self.path == "/api/photo":
 				c.take_photo(camera, False)

@@ -133,6 +133,10 @@
 				margin: auto;
 			}
 
+			.statistics p {
+				margin: 0.2rem;	
+			}
+
 			@keyframes spin {
 				0% { transform: rotate(0deg); }
 				100% { transform: rotate(360deg); }
@@ -360,7 +364,6 @@
 								<h3>Video is being loaded...</h3>
 							</div>
 						</div>
-						<p>Current Camera Temperature: <span id="current-temperature">0.0</span>&deg;C</p>
 						<div class="row">
 							<div class="col-sm-4">
 								<a href="javascript:void" onclick="button('/api/nightvision')" class="btn btn-dark" style="width: 100%">Toggle Night Vision</a>
@@ -399,10 +402,7 @@
 									</div>
 								</a>
 							</div>
-
-
 						</div>
-						
 					</div>
 				</div>
 			</div>
@@ -411,10 +411,7 @@
 					<div class="card card-body">
 						<h2 class="card-title">Saved Photos</h2>
 						<p class="card-text">Click on a photo to view it.</p>
-						
 						<div class="row image-viewer" id="image-container">
-
-
 							<div class="col-sm-3 asset-column">
 								<a href="img.jpg">
 									<div class="saved-image">
@@ -427,6 +424,18 @@
 								</a>
 							</div>
 						</div>
+					</div>
+				</div>
+			</div>
+			<div class="row statistics">
+				<div class="col-sm-12">
+					<div class="card card-body">
+						<h2 class="card-title">BirdBox Statistics</h2>
+						<p>Current Camera Temperature: <span id="current-temperature">0.0</span>&deg;C</p>
+						<p>Current Night Vision Mode: <span id="nightvision-mode">day</span></p>
+						<p>Current Running Time: <span id="running-duration">00:00:00</span></p>
+						<p>Approximate Location: <span id="address">N/A</span></p>
+						<p>Disk Usage: <span id="usage">N/A</span> - <span style="color: red">If you use over 90% then video and photos will be disabled</span></p>
 					</div>
 				</div>
 			</div>
