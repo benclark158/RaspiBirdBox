@@ -1,0 +1,23 @@
+#service file
+sudo nano /usr/lib/systemd/system/birdbox-py.service
+
+#service commands DEFUNCT
+sudo systemctl stop birdbox-py.service
+sudo systemctl status birdbox-py.service
+sudo systemctl start birdbox-py.service
+sudo systemctl restart birdbox-py.service
+sudo systemctl daemon-reload
+sudo systemctl disable birdbox-py.service
+
+#nginx config
+/usr/local/nginx/conf/nginx.conf
+
+sudo /usr/local/nginx/sbin/nginx -s stop
+sudo /usr/local/nginx/sbin/nginx
+
+#screen
+screen -r = reconnect
+screen -XS [ID] quit = kills it
+
+#cron
+sudo crontab -e #editor
